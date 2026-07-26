@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Types.hpp"
+#include "Utils.hpp"
 #include <functional>
 #include <vector>
 #include <cstdint>
