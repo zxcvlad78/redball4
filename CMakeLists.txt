@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-set(PROJECT_NAME TemplateProject)
+set(PROJECT_NAME redball4)
 project(${PROJECT_NAME} VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -9,7 +9,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(EnTT CONFIG REQUIRED)
 find_package(SFML CONFIG REQUIRED COMPONENTS Graphics Window System Audio)
-
+find_package(Bitsery CONFIG REQUIRED)
+find_package(GameNetworkingSockets CONFIG REQUIRED)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.hpp")
 
@@ -23,6 +24,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     SFML::Window
     SFML::System
     SFML::Audio
+    GameNetworkingSockets::GameNetworkingSockets
 )
 
 

@@ -5,6 +5,8 @@
     "sfml",
     "entt",
     "termcolor",
-    "nlohmann-json"
+    "nlohmann-json",
+    "bitsery",
+    "gamenetworkingsockets"
   ]
 }

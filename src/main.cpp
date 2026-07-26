@@ -1,91 +1,186 @@
-#include "game/Components.hpp"
-#include "game/Systems.hpp"
+#include "meatnet/Utils.hpp"
+#include "meatnet/Server.hpp"
+#include "meatnet/Client.hpp"
+#include "meatnet/ConsoleInput.hpp"
+#include "meatnet/Serialization.hpp"
+#include <cstdio>
+#include <string>
+#include <chrono>
+#include <thread>
 
-#include "game/sprite/Components.hpp"
-#include "game/sprite/Systems.hpp"
+using namespace MeatNet;
 
-#include "game/physics/Components.hpp"
-#include "game/physics/Systems.hpp"
+static bool g_quit = false;
 
-#include "resourceloader/ResourceLoader.hpp"
+void SendChatMessage(Client client, std::string messageText) {
+    BinaryWriter writer;
+    
+    writer.WriteString(messageText);
 
+    client.Send(writer.GetBuffer().data(), writer.Size(), true);
+}
 
-#define CLEAR_COLOR sf::Color::Black
-#define WINDOW_SIZE sf::Vector2u(1280, 720)
+void OnClientConnected(ConnectionID conn, const char* address) {
+    printf("[SERVER] Client %s connected (ID: %u)\n", address, conn);
+}
 
+void OnClientDisconnected(ConnectionID conn, int reason, const char* debug) {
+    printf("[SERVER] Client %u disconnected. Reason: %d (%s)\n", conn, reason, debug);
+}
 
-int main() {
-    sf::RenderWindow window(sf::VideoMode(WINDOW_SIZE), "redball4");
-    window.setFramerateLimit(0);
+void OnServerMessage(ConnectionID conn, const void* data, uint32_t size) {
+    printf("[SERVER] Received %u bytes from %u\n", size, conn);
+    // Server received message
 
-    sf::Clock clock;
-    entt::registry registry;
-
-    auto floor = registry.create(); {
-        auto& transform = registry.emplace<Transform>(floor); {
-            transform.position = {
-                32.f,
-                static_cast<float>(WINDOW_SIZE.y) - 200.f
-            };
-        }
-        auto& sprite = registry.emplace<Sprite>(floor,
-            resourceloader.load<sf::Texture, sf::TextureLoader>("res/textures/floor.png")
-        );
-        auto& collider = registry.emplace<Collider>(floor, 256.f, 32.f);
-
+    // Deserialize message
+    BinaryReader reader(static_cast<const uint8_t*>(data), size);
+    std::string messageText;
+    if (!reader.ReadString(messageText)) {
+        fprintf(stderr, "[SERVER] Failed to deserialize data\n");
+        return;
     }
 
+    //messageText = conn + messageText;
 
-    //MainLoop
-    while (window.isOpen()) {
-        while (const std::optional event = window.pollEvent()) {
-            if (event->is<sf::Event::Closed>()) {
-                window.close();
-            }
-         
-            if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
-                sf::Keyboard::Key code = keyPressed->code;
-                
-                if (code == sf::Keyboard::Key::Space) {
-                    auto ball = registry.create(); {
-                        auto& transform = registry.emplace<Transform>(ball); {
-                            transform.position = {25.f, 25.f};
-                            transform.scale = {3.f, 3.f};
-                        }
+    // Send message to all clients
+    
 
-                        auto& velocity = registry.emplace<Velocity>(ball);
-                        auto& sprite = registry.emplace<Sprite>(ball,
-                            resourceloader.load<sf::Texture, sf::TextureLoader>("res/textures/ball.png")
-                        );
 
-                        auto& rb = registry.emplace<RigidBody>(ball);
-                        auto& collider = registry.emplace<Collider>(ball, 16.f, 16.f);
-                        auto& gravity = registry.emplace<Gravity>(ball);
-                    }
+}
+
+void OnConnected() {
+    printf("[CLIENT] Connected to server!\n");
+}
+
+void OnDisconnected(int reason, const char* debug) {
+    printf("[CLIENT] Disconnected. Reason: %d (%s)\n", reason, debug);
+    g_quit = true;
+}
+
+void OnClientMessage(const void* data, uint32_t size) {
+    printf("[CLIENT] Received %u bytes from server\n", size);
+    // Client received message
+}
+
+void PrintUsage() {
+    printf(
+R"usage(Usage:
+    client SERVER_ADDR
+    server [--port PORT]
+)usage"
+    );
+}
+
+int main(int argc, const char* argv[]) {
+    bool bServer = false;
+    bool bClient = false;
+    uint16_t port = kDefaultPort;
+    std::string serverAddress;
+
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "server") == 0) {
+            bServer = true;
+        } else if (strcmp(argv[i], "client") == 0) {
+            bClient = true;
+        } else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) {
+            port = static_cast<uint16_t>(atoi(argv[++i]));
+        } else if (bClient && serverAddress.empty()) {
+            serverAddress = argv[i];
+        } else {
+            PrintUsage();
+            return 1;
+        }
+    }
+
+    if ((bServer && bClient) || (!bServer && !bClient)) {
+        PrintUsage();
+        return 1;
+    }
+    if (bClient && serverAddress.empty()) {
+        PrintUsage();
+        return 1;
+    }
+
+    // Network initialization
+    if (!InitNetwork()) {
+        fprintf(stderr, "Failed to initialize network\n");
+        return 1;
+    }
+
+    SetLogCallback([](LogLevel level, const char* msg) {
+        // Logging
+    });
+
+    ConsoleInput console;
+    console.Start();
+
+    if (bServer) {
+        Server server;
+        server.SetOnClientConnected(OnClientConnected);
+        server.SetOnClientDisconnected(OnClientDisconnected);
+        server.SetOnMessageReceived(OnServerMessage);
+
+        if (!server.Start(port)) {
+            fprintf(stderr, "Failed to start server\n");
+            ShutdownNetwork();
+            return 1;
+        }
+
+        printf("Server is running. Type 'quit' to stop.\n");
+
+        // Main loop
+        while (!g_quit) {
+            server.Update();
+
+            std::string cmd;
+            if (console.GetNextLine(cmd)) {
+                if (cmd == "quit" || cmd == "exit") {
+                    g_quit = true;
+                } else {
+                    printf("Unknown command: %s\n", cmd.c_str());
                 }
-                
             }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-    
-    sf::Time elapsed = clock.restart();
-    float dt = elapsed.asSeconds();
 
-    Game::Physics::Systems::update(registry, dt);
+        server.Stop();
+    } else if (bClient) {
+        Client client;
+        client.SetOnConnected(OnConnected);
+        client.SetOnDisconnected(OnDisconnected);
+        client.SetOnMessageReceived(OnClientMessage);
 
-    window.clear(CLEAR_COLOR);
+        if (!client.Connect(serverAddress)) {
+            fprintf(stderr, "Failed to connect to server\n");
+            ShutdownNetwork();
+            return 1;
+        }
 
-    Game::Systems::update(registry, dt);
-    SpriteSystems::update(registry, window);
+        printf("Client connecting... Type 'quit' to exit.\n");
 
-    //render relative to camera
-    Game::Physics::Systems::render(registry, window);
+        while (!g_quit) {
+            client.Update();
 
-    window.setView(window.getDefaultView()); 
-    //render relative to screen
-    
+            std::string cmd;
+            if (console.GetNextLine(cmd)) {
+                if (cmd == "quit" || cmd == "exit") {
+                    g_quit = true;
+                    client.Disconnect();
+                } else {
+                    // Sending message to server
+                    client.Send(cmd.c_str(), static_cast<uint32_t>(cmd.size() + 1), true);
+                }
+            }
 
-    window.display();
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        client.Disconnect();
     }
+
+    console.Stop();
+    ShutdownNetwork();
 
     return 0;
 }
