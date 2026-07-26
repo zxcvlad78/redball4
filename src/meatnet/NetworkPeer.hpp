@@ -10,10 +10,10 @@ namespace MeatNet {
 
 class NetworkPeer {
 public:
+    NetworkPeer() : m_pInterface(GetSocketsInterface()) { }
     virtual ~NetworkPeer() = default;
 
     virtual void Update() = 0;
-
     virtual bool Send(const void* data, uint32_t size, bool reliable = true) = 0;
 
     virtual bool IsActive() const = 0;
@@ -30,6 +30,7 @@ protected:
     virtual void OnConnectionStateChange(SteamNetConnectionStatusChangedCallback_t* pInfo) = 0;
 
     void PollCallbacks();
+    void Log(LogLevel level, const char* msg);
 };
 
 } // namespace MeatNet

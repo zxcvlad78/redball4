@@ -1,44 +1,44 @@
 #pragma once
 
-#include "Types.hpp"
+#include "NetworkPeer.hpp"
 #include <string>
 
 namespace MeatNet {
 
-class Client {
+class Client : public NetworkPeer {
 public:
     Client();
-    ~Client();
+    ~Client() override;
 
     bool Connect(const std::string& address);
     void Disconnect();
-    void Update();
 
-    //
-    bool Send(const void* data, uint32_t size, bool reliable = true);
+    void Update() override;
+    bool Send(const void* data, uint32_t size, bool reliable = true) override;
+    bool IsActive() const override { return m_connected; }
 
-    bool IsConnected() const;
     ConnectionID GetConnectionID() const { return m_hConnection; }
 
-    void SetOnConnected(OnConnectedCallback cb)         { m_onConnected = cb; }
-    void SetOnDisconnected(OnDisconnectedCallback cb)   { m_onDisconnected = cb; }
+    void SetOnConnected(OnConnectedCallback cb)           { m_onConnected = cb; }
+    void SetOnDisconnected(OnDisconnectedCallback cb)     { m_onDisconnected = cb; }
     void SetOnMessageReceived(OnServerMessageCallback cb) { m_onMessage = cb; }
 
+protected:
+    void OnIncomingMessage(ConnectionID conn, const void* data, uint32_t size) override;
+    void OnConnectionStateChange(SteamNetConnectionStatusChangedCallback_t* pInfo) override;
+
 private:
-    void OnConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo);
-    void PollIncomingMessages();
-    void PollConnectionStateChanges();
-
-    static void SteamNetConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t* pInfo);
-    static Client* s_pCallbackInstance;
-
-    ISteamNetworkingSockets* m_pInterface = nullptr;
-    ConnectionID m_hConnection = k_HSteamNetConnection_Invalid;
-    bool m_connected = false;
+    ConnectionID m_hConnection;
+    bool m_connected;
 
     OnConnectedCallback m_onConnected;
     OnDisconnectedCallback m_onDisconnected;
     OnServerMessageCallback m_onMessage;
+
+    void PollIncomingMessages();
+
+    static void SteamNetConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t* pInfo);
+    static Client* s_pCallbackInstance;
 };
 
 } // namespace MeatNet

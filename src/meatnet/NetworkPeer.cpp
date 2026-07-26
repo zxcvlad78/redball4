@@ -8,4 +8,12 @@ void NetworkPeer::PollCallbacks() {
     }
 }
 
-} //namespace MeatNet
+void NetworkPeer::Log(LogLevel level, const char* msg) {
+    if (m_logCallback) {
+        m_logCallback(level, msg);
+    } else {
+        printf("[Peer] %s\n", msg);
+    }
+}
+
+} // namespace MeatNet

@@ -1,13 +1,15 @@
 #include "Client.hpp"
-#include "Utils.hpp"
 #include <cassert>
+#include <cstdio>
 
 namespace MeatNet {
 
 Client* Client::s_pCallbackInstance = nullptr;
 
-Client::Client() {
-    m_pInterface = GetSocketsInterface();
+Client::Client()
+    : NetworkPeer()
+    , m_hConnection(k_HSteamNetConnection_Invalid)
+    , m_connected(false) {
 }
 
 Client::~Client() {
@@ -15,19 +17,18 @@ Client::~Client() {
 }
 
 bool Client::Connect(const std::string& address) {
-    if (!m_pInterface) {
-        fprintf(stderr, "Client: SteamNetworkingSockets interface not available.\n");
+    if (m_connected || m_hConnection != k_HSteamNetConnection_Invalid) {
+        Log(LogLevel::Warning, "Already connected or connecting");
         return false;
     }
-
-    if (m_connected || m_hConnection != k_HSteamNetConnection_Invalid) {
-        fprintf(stderr, "Client: Already connected or connecting.\n");
+    if (!m_pInterface) {
+        Log(LogLevel::Error, "SteamNetworkingSockets interface not available");
         return false;
     }
 
     SteamNetworkingIPAddr addr;
     if (!addr.ParseString(address.c_str())) {
-        fprintf(stderr, "Client: Invalid address format. Use 'ip:port' or 'domain:port'.\n");
+        Log(LogLevel::Error, ("Invalid address: " + address).c_str());
         return false;
     }
 
@@ -37,18 +38,18 @@ bool Client::Connect(const std::string& address) {
 
     m_hConnection = m_pInterface->ConnectByIPAddress(addr, 1, &opt);
     if (m_hConnection == k_HSteamNetConnection_Invalid) {
-        fprintf(stderr, "Client: Failed to create connection to %s\n", address.c_str());
+        Log(LogLevel::Error, ("Failed to connect to " + address).c_str());
         return false;
     }
 
     s_pCallbackInstance = this;
-    printf("Client: Connecting to %s...\n", address.c_str());
+    Log(LogLevel::Msg, ("Connecting to " + address + "...").c_str());
     return true;
 }
 
 void Client::Disconnect() {
     if (m_pInterface && m_hConnection != k_HSteamNetConnection_Invalid) {
-        m_pInterface->CloseConnection(m_hConnection, 0, "Client disconnecting", true);
+        m_pInterface->CloseConnection(m_hConnection, 0, "Client disconnect", true);
         m_hConnection = k_HSteamNetConnection_Invalid;
     }
     m_connected = false;
@@ -56,26 +57,20 @@ void Client::Disconnect() {
 }
 
 void Client::Update() {
-    if (!m_pInterface)
-        return;
-
+    if (!m_pInterface) return;
+    PollCallbacks();
     PollIncomingMessages();
-    PollConnectionStateChanges();
 }
 
 bool Client::Send(const void* data, uint32_t size, bool reliable) {
-    if (!m_connected || !m_pInterface || m_hConnection == k_HSteamNetConnection_Invalid)
+    if (!m_connected || !m_pInterface || m_hConnection == k_HSteamNetConnection_Invalid) {
         return false;
-
+    }
     int flags = reliable ? k_nSteamNetworkingSend_Reliable : k_nSteamNetworkingSend_Unreliable;
     return m_pInterface->SendMessageToConnection(m_hConnection, data, size, flags, nullptr) == k_EResultOK;
 }
 
-bool Client::IsConnected() const {
-    return m_connected;
-}
-
-void Client::OnConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo) {
+void Client::OnConnectionStateChange(SteamNetConnectionStatusChangedCallback_t* pInfo) {
     assert(pInfo->m_hConn == m_hConnection || m_hConnection == k_HSteamNetConnection_Invalid);
 
     switch (pInfo->m_info.m_eState) {
@@ -86,11 +81,9 @@ void Client::OnConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
         case k_ESteamNetworkingConnectionState_ProblemDetectedLocally: {
             bool wasConnected = m_connected;
             m_connected = false;
-
             if (wasConnected && m_onDisconnected) {
                 m_onDisconnected(pInfo->m_info.m_eEndReason, pInfo->m_info.m_szEndDebug);
             }
-
             if (m_pInterface) {
                 m_pInterface->CloseConnection(pInfo->m_hConn, 0, nullptr, false);
             }
@@ -113,37 +106,29 @@ void Client::OnConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
     }
 }
 
+void Client::OnIncomingMessage(ConnectionID conn, const void* data, uint32_t size) {
+    if (m_onMessage) {
+        m_onMessage(data, size);
+    }
+}
+
 void Client::PollIncomingMessages() {
     ISteamNetworkingMessage* pMsg = nullptr;
     int numMsgs = m_pInterface->ReceiveMessagesOnConnection(m_hConnection, &pMsg, 1);
     while (numMsgs > 0 && m_connected) {
         if (numMsgs < 0) {
-            fprintf(stderr, "Client: ReceiveMessagesOnConnection error\n");
+            Log(LogLevel::Error, "ReceiveMessagesOnConnection error");
             break;
         }
-
-        if (m_onMessage) {
-            m_onMessage(pMsg->m_pData, pMsg->m_cbSize);
-        }
-
+        OnIncomingMessage(m_hConnection, pMsg->m_pData, pMsg->m_cbSize);
         pMsg->Release();
-
         numMsgs = m_pInterface->ReceiveMessagesOnConnection(m_hConnection, &pMsg, 1);
-    }
-}
-
-void Client::PollConnectionStateChanges() {
-    if (s_pCallbackInstance == this) {
-        m_pInterface->RunCallbacks();
-    } else {
-        s_pCallbackInstance = this;
-        m_pInterface->RunCallbacks();
     }
 }
 
 void Client::SteamNetConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t* pInfo) {
     if (s_pCallbackInstance) {
-        s_pCallbackInstance->OnConnectionStatusChanged(pInfo);
+        s_pCallbackInstance->OnConnectionStateChange(pInfo);
     }
 }
 
