@@ -2,7 +2,7 @@
 #include "meatnet/Server.hpp"
 #include "meatnet/Client.hpp"
 #include "meatnet/Serialization.hpp"
-#include "meatnet/ConsoleInput.hpp"
+#include "common/ConsoleInput.hpp"
 #include <cstdio>
 #include <string>
 #include <chrono>

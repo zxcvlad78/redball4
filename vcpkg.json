@@ -1,12 +1,11 @@
 {
-  "name": "templateproject",
+  "name": "redball4",
   "version-string": "0.0.1",
   "dependencies": [
     "sfml",
     "entt",
     "termcolor",
     "nlohmann-json",
-    "bitsery",
     "gamenetworkingsockets"
   ]
 }

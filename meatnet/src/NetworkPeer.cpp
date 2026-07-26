@@ -1,4 +1,4 @@
-#include "NetworkPeer.hpp"
+#include "meatnet/NetworkPeer.hpp"
 
 namespace MeatNet {
 

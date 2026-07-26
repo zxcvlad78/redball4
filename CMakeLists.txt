@@ -9,10 +9,12 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(EnTT CONFIG REQUIRED)
 find_package(SFML CONFIG REQUIRED COMPONENTS Graphics Window System Audio)
-find_package(Bitsery CONFIG REQUIRED)
 find_package(GameNetworkingSockets CONFIG REQUIRED)
 
-file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.hpp")
+file(GLOB_RECURSE SOURCES
+    "src/*.cpp" "src/*.hpp"
+    "meatnet/src/*.cpp" "meatnet/src/*.hpp"
+    )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
