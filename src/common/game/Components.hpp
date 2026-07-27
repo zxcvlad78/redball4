@@ -2,6 +2,7 @@
 
 #include "entt/entt.hpp"
 #include "sfml/Graphics.hpp"
+#include "meatnet/Serialization.hpp"
 
 struct ZIndex {
     unsigned int value = 0;
@@ -19,6 +20,31 @@ struct Transform {
             scale = t->scale;
         }
         return *this;
+    }
+
+    const uint8_t* Serialize() {
+        MeatNet::BinaryWriter writer(5);
+        
+        writer.WriteFloat(position.x);
+        writer.WriteFloat(position.y);
+        //writer.WriteFloat(rotation.asRadians()); // TODO
+        writer.WriteFloat(scale.x);
+        writer.WriteFloat(scale.y);
+        
+        return writer.GetBuffer().data();
+    }
+
+    static Transform* Deserialize(const uint8_t* data) {
+        MeatNet::BinaryReader reader(data, 5);
+        Transform* t = new Transform();
+       
+        reader.ReadFloat(t->position.x);
+        reader.ReadFloat(t->position.y);
+        //reader.ReadFloat(t->rotation.asRadians); // TODO
+        reader.ReadFloat(t->scale.x);
+        reader.ReadFloat(t->scale.y);
+
+        return t;
     }
 };
 
