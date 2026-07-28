@@ -1,8 +1,17 @@
+#include "../common/game/Components.hpp"
+#include "../common/game/Systems.hpp"
+
+#include "../common/game/physics/Components.hpp"
+#include "../common/game/physics/Systems.hpp"
+
+#include "../common/game/sprite/Components.hpp"
+#include "../common/game/sprite/Systems.hpp"
+
 #include "meatnet/Utils.hpp"
 #include "meatnet/Server.hpp"
 #include "meatnet/Client.hpp"
 #include "meatnet/Serialization.hpp"
-#include "common/ConsoleInput.hpp"
+#include "../common/ConsoleInput.hpp"
 #include <cstdio>
 #include <string>
 #include <chrono>
@@ -13,58 +22,106 @@ using namespace MeatNet;
 static bool shouldQuit = false;
 static Client* client = nullptr;
 
+#define CLEAR_COLOR sf::Color::Black
+#define WINDOW_SIZE sf::Vector2u(1280, 720)
+
 
 void OnConnected() {
-    printf("[CLIENT] Connected to server!\n");
+    printf("Connected to server!\n");
 }
 
 void OnDisconnected(int reason, const char* debug) {
-    printf("[CLIENT] Disconnected. Reason: %d (%s)\n", reason, debug);
-    shouldQuit = true;
+    printf("Disconnected. Reason: %d (%s)\n", reason, debug);
 }
 
-void OnClientMessage(const void* data, uint32_t size) {
+void OnMessageReceived(const void* data, uint32_t size) {
+    printf("Message received: ");
     BinaryReader reader(static_cast<const uint8_t*>(data), size);
     
     std::string msgText;
     if (reader.ReadString(msgText)) {
-        printf("[CHAT] %s\n", msgText.c_str());
+        printf("'[CHAT] %s'\n", msgText.c_str());
     }
-
-    
 }
 
 void PrintUsage() {
     printf(
 R"usage(Usage:
-    client SERVER_ADDR
-    server [--port PORT]
+    SERVER_ADDR
 )usage"
     );
 }
 
-int main(int argc, const char* argv[]) {
-    bool bServer = false, bClient = false;
-    uint16_t port = kDefaultPort;
-    std::string serverAddress;
-
-    for (int i = 1; i < argc; ++i) {
-        if (strcmp(argv[i], "server") == 0) bServer = true;
-        else if (strcmp(argv[i], "client") == 0) bClient = true;
-        else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) {
-            port = static_cast<uint16_t>(atoi(argv[++i]));
-        } else if (bClient && serverAddress.empty()) {
-            serverAddress = argv[i];
+std::vector<std::string> ParseArgs(const std::string& cmd) {
+    std::vector<std::string> args;
+    std::string current;
+    bool inQuotes = false;
+    for (size_t i = 0; i < cmd.size(); ++i) {
+        char c = cmd[i];
+        if (c == '"') {
+            inQuotes = !inQuotes;
+        } else if (c == ' ' && !inQuotes) {
+            if (!current.empty()) {
+                args.push_back(current);
+                current.clear();
+            }
         } else {
-            PrintUsage();
-            return 1;
+            current += c;
+        }
+    }//ща у меня пацан в телефоне говорит
+    if (!current.empty()) args.push_back(current);
+    return args;
+}
+
+void ParseCmd(const std::string& cmd) {
+    auto args = ParseArgs(cmd);
+    if (args.empty()) return;
+    const std::string& command = args[0];
+
+    if (command == "quit") {
+        shouldQuit = true;
+        if (client) client->Close();
+    }
+    else if (command == "connect") {
+        if (args.size() < 1) { return; }
+        if (client) delete client;
+
+        const std::string serverAddress = args[1];
+
+        client = new Client();
+        client->SetOnConnected(OnConnected);
+        client->SetOnDisconnected(OnDisconnected);
+        client->SetOnMessageReceived(OnMessageReceived);
+        if (!client->Connect(serverAddress)) {
+            fprintf(stderr, "Failed to connect\n");
+            delete client;
+            return;
         }
     }
-
-    if ((bServer && bClient) || (!bServer && !bClient) || (bClient && serverAddress.empty())) {
-        PrintUsage();
-        return 1;
+    else if (command == "disconnect") {
+        if (client) {
+            //client->Close();
+            delete client;
+        }
     }
+    else if (command == "msg") {
+        if (args.size() < 2) { return; }
+
+        BinaryWriter writer;
+        writer.WriteString(args[1]);
+        client->Send(writer.GetBuffer().data(), writer.Size(), true);
+
+    }
+    else {
+
+    }
+}
+
+
+
+int main() {
+    sf::RenderWindow window(sf::VideoMode(WINDOW_SIZE), "redball4 Client");
+    window.setFramerateLimit(0);
 
     if (!InitNetwork()) {
         fprintf(stderr, "Failed to initialize network\n");
@@ -74,37 +131,39 @@ int main(int argc, const char* argv[]) {
     ConsoleInput console;
     console.Start();
 
-
-    client = new Client();
-    client->SetOnConnected(OnConnected);
-    client->SetOnDisconnected(OnDisconnected);
-    client->SetOnMessageReceived(OnClientMessage);
-    if (!client->Connect(serverAddress)) {
-        fprintf(stderr, "Failed to connect\n");
-        delete client;
-        ShutdownNetwork();
-        return 1;
-    }
-    
-    printf("Connected to %s. Type 'quit' to exit.\n", serverAddress.c_str());
-    
+    sf::Clock clock;
+    entt::registry registry;
 
     while (!shouldQuit) {
-        client->Update();
-
-        std::string cmd;
-        if (console.GetNextLine(cmd)) {
-            if (cmd == "quit" || cmd == "exit") {
-                shouldQuit = true;
-                client->Close();
-            } else {
-                BinaryWriter writer;
-                writer.WriteString(cmd);
-                client->Send(writer.GetBuffer().data(), writer.Size(), true);
+        while (window.isOpen()) {
+            while (const std::optional event = window.pollEvent()) {
+                if (event->is<sf::Event::Closed>()) {
+                    window.close();
+                }
+            
             }
-        }
+            
+            sf::Time elapsed = clock.restart();
+            float dt = elapsed.asSeconds();
+        
+            if (client) client->Update();
+    
+            std::string cmd;
+            if (console.GetNextLine(cmd)) {
+                ParseCmd(cmd);
+            }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            window.clear(CLEAR_COLOR);
+            //render relative to camera
+            SpriteSystems::update(registry, window);
+
+            window.setView(window.getDefaultView()); 
+            //render relative to screen
+
+            window.display();
+        }
+        
+        
     }
 
     console.Stop();

@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <cstring>
 
+namespace MeatNet {
+
 static inline uint16_t HostToNet16(uint16_t v) {
     return ((v & 0xFF) << 8) | ((v >> 8) & 0xFF);
 }
@@ -11,12 +13,14 @@ static inline uint32_t HostToNet32(uint32_t v) {
            ((v & 0xFF0000) >> 8) |
            ((v & 0xFF000000) >> 24);
 }
-
+static inline uint64_t HostToNet64(uint64_t v) {
+    return ((uint64_t)HostToNet32((uint32_t)v) << 32) | HostToNet32((uint32_t)(v >> 32));
+}
 
 static inline uint16_t NetToHost16(uint16_t v) { return HostToNet16(v); }
 static inline uint32_t NetToHost32(uint32_t v) { return HostToNet32(v); }
+static inline uint64_t NetToHost64(uint64_t v) { return HostToNet64(v); }
 
-namespace MeatNet {
 
 BinaryWriter::BinaryWriter() : m_buffer() {}
 BinaryWriter::BinaryWriter(size_t initialCapacity) {
@@ -37,23 +41,27 @@ void BinaryWriter::WriteInt(T v) {
         uint32_t net = HostToNet32(static_cast<uint32_t>(v));
         WriteRaw(&net, sizeof(net));
     } else if constexpr (sizeof(T) == 8) {
-        // TODO: write long
-        WriteRaw(&v, sizeof(T));
+        uint64_t net = HostToNet64(static_cast<uint64_t>(v));
+        WriteRaw(&net, sizeof(T));
     }
 }
 
-void BinaryWriter::WriteInt8(int8_t v) { BinaryWriter::WriteInt(v); }
-void BinaryWriter::WriteUInt8(uint8_t v) { BinaryWriter::WriteInt(v); }
-void BinaryWriter::WriteInt16(int16_t v) { BinaryWriter::WriteInt(v); }
-void BinaryWriter::WriteUInt16(uint16_t v) { BinaryWriter::WriteInt(v); }
-void BinaryWriter::WriteInt32(int32_t v) { BinaryWriter::WriteInt(v); }
-void BinaryWriter::WriteUInt32(uint32_t v) { BinaryWriter::WriteInt(v); }
+void BinaryWriter::WriteInt8(int8_t v) { WriteInt(v); }
+void BinaryWriter::WriteUInt8(uint8_t v) { WriteInt(v); }
+void BinaryWriter::WriteInt16(int16_t v) { WriteInt(v); }
+void BinaryWriter::WriteUInt16(uint16_t v) { WriteInt(v); }
+void BinaryWriter::WriteInt32(int32_t v) { WriteInt(v); }
+void BinaryWriter::WriteUInt32(uint32_t v) { WriteInt(v); }
+void BinaryWriter::WriteInt64(int64_t v) { WriteInt(v); }
+void BinaryWriter::WriteUInt64(uint64_t v) { WriteInt(v); }
 
 void BinaryWriter::WriteFloat(float v) {
     uint32_t bits;
     std::memcpy(&bits, &v, sizeof(bits));
+    std::memcpy(&bits, &v, 4);
     uint32_t net = HostToNet32(bits);
     WriteRaw(&net, sizeof(net));
+    WriteRaw(&net, 4);
 }
 
 void BinaryWriter::WriteBool(bool v) {
@@ -102,8 +110,9 @@ bool BinaryReader::ReadInt(T& out) {
         ReadRaw(&net, sizeof(net));
         out = static_cast<T>(NetToHost32(net));
     } else if constexpr (sizeof(T) == 8) {
-        // TODO: read long
-        ReadRaw(&out, sizeof(T));
+        uint64_t net;
+        ReadRaw(&net, 8);
+        out = static_cast<T>(NetToHost64(net));
     }
     return true;
 }
@@ -114,6 +123,8 @@ bool BinaryReader::ReadInt16(int16_t& out) { return ReadInt(out); }
 bool BinaryReader::ReadUInt16(uint16_t& out) { return ReadInt(out); }
 bool BinaryReader::ReadInt32(int32_t& out) { return ReadInt(out); }
 bool BinaryReader::ReadUInt32(uint32_t& out) { return ReadInt(out); }
+bool BinaryReader::ReadInt64(int64_t& out) { return ReadInt(out); }
+bool BinaryReader::ReadUInt64(uint64_t& out){ return ReadInt(out); }
 
 bool BinaryReader::ReadFloat(float& out) {
     if (m_pos + sizeof(float) > m_size) {

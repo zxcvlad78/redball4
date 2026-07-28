@@ -1,15 +1,15 @@
 //Server main
 #include "../common/game/Components.hpp"
-#include "common/game/Systems.hpp"
+#include "../common/game/Systems.hpp"
 
-#include "game/physics/Components.hpp"
-#include "game/physics/Systems.hpp"
+#include "../common/game/physics/Components.hpp"
+#include "../common/game/physics/Systems.hpp"
 
 #include "meatnet/Utils.hpp"
 #include "meatnet/Server.hpp"
 #include "meatnet/Client.hpp"
 #include "meatnet/Serialization.hpp"
-#include "common/ConsoleInput.hpp"
+#include "../common/ConsoleInput.hpp"
 #include <cstdio>
 #include <string>
 #include <chrono>
@@ -40,13 +40,23 @@ void OnMessageReceived(ConnectionID conn, const void* data, uint32_t size) {
     }
 }
 
-
 void PrintUsage() {
     printf(
 R"usage(Usage:
     [--port PORT]
 )usage"
     );
+}
+
+void ParseCmd(const std::string& cmd) {
+    if (cmd == "quit" || cmd == "exit") {
+        shouldQuit = true;
+        server->Close();
+    }
+
+    else {
+        printf("Unknown command. Type 'quit' to stop.\n");
+    }
 }
 
 int main(int argc, const char* argv[]) {
@@ -90,12 +100,7 @@ int main(int argc, const char* argv[]) {
 
         std::string cmd;
         if (console.GetNextLine(cmd)) {
-            if (cmd == "quit" || cmd == "exit") {
-                shouldQuit = true;
-                server->Close();
-            } else {
-                printf("Unknown command. Type 'quit' to stop.\n");
-            }
+            ParseCmd(cmd);
         }
 
         Game::Physics::Systems::update(registry, dt);

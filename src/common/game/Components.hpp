@@ -6,6 +6,14 @@
 
 struct NetId {
     long value = 0;
+
+    const uint8_t* Serialize() {
+        
+    }
+
+    // static NetId Deserialize(const uint8_t* data) {
+    //     return 0;
+    // }
 };
 
 struct ZIndex {
@@ -27,8 +35,9 @@ struct Transform {
     }
 
     const uint8_t* Serialize() {
-        MeatNet::BinaryWriter writer(5);
+        MeatNet::BinaryWriter writer(16);
         
+        writer.WriteInt(25);
         writer.WriteFloat(position.x);
         writer.WriteFloat(position.y);
         //writer.WriteFloat(rotation.asRadians()); // TODO
@@ -38,17 +47,15 @@ struct Transform {
         return writer.GetBuffer().data();
     }
 
-    static Transform* Deserialize(const uint8_t* data) {
-        MeatNet::BinaryReader reader(data, 5);
-        Transform* t = new Transform();
+    static void Deserialize(entt::registry& registry, entt::entity e, const uint8_t* data) {
+        auto& t = registry.emplace_or_replace<Transform>(e);
+        MeatNet::BinaryReader reader(data, 16);
        
-        reader.ReadFloat(t->position.x);
-        reader.ReadFloat(t->position.y);
+        reader.ReadFloat(t.position.x);
+        reader.ReadFloat(t.position.y);
         //reader.ReadFloat(t->rotation.asRadians); // TODO
-        reader.ReadFloat(t->scale.x);
-        reader.ReadFloat(t->scale.y);
-
-        return t;
+        reader.ReadFloat(t.scale.x);
+        reader.ReadFloat(t.scale.y);
     }
 };
 

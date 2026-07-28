@@ -7,6 +7,11 @@
 
 namespace MeatNet {
 
+static inline uint32_t HostToNet32(uint32_t v);
+static inline uint64_t HostToNet64(uint64_t v);
+static inline uint32_t NetToHost32(uint32_t v);
+static inline uint64_t NetToHost64(uint64_t v);
+
 class BinaryWriter {
 public:
     BinaryWriter();
@@ -18,6 +23,8 @@ public:
     void WriteUInt16(uint16_t v);
     void WriteInt32(int32_t v);
     void WriteUInt32(uint32_t v);
+    void WriteInt64(int64_t v);
+    void WriteUInt64(uint64_t v);
     template<typename T> void WriteInt(T v);
     void WriteFloat(float v);
     void WriteBool(bool v);
@@ -47,6 +54,8 @@ public:
     bool ReadUInt16(uint16_t& out);
     bool ReadInt32(int32_t& out);
     bool ReadUInt32(uint32_t& out);
+    bool ReadInt64(int64_t& out);
+    bool ReadUInt64(uint64_t& out);
     template<typename T> bool ReadInt(T& out);
     bool ReadFloat(float& out);
     bool ReadBool(bool& out);

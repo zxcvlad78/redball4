@@ -32,6 +32,9 @@ add_executable(${CLIENT_NAME}
     ${COMMON_SOURCES}
     ${CLIENT_SOURCES}
 )
+target_include_directories(${CLIENT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
 
 target_link_libraries(${CLIENT_NAME} PRIVATE 
     EnTT::EnTT
@@ -50,16 +53,13 @@ add_custom_command(TARGET ${CLIENT_NAME} POST_BUILD
 )
 ##
 
-# Common
-target_include_directories(${CLIENT_NAME} PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-#
-
 # Server
 add_executable(${SERVER_NAME}
     ${COMMON_SOURCES}
     ${SERVER_SOURCES}
+)
+target_include_directories(${SERVER_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
 )
 
 target_link_libraries(${SERVER_NAME} PRIVATE 
