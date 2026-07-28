@@ -13,7 +13,7 @@ public:
     ~Server() override;
 
     bool Start(uint16_t port = kDefaultPort);
-    void Stop();
+    void Close() override;
 
     void Update() override;
     bool Send(const void* data, uint32_t size, bool reliable = true) override;

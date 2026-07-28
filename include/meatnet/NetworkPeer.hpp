@@ -16,6 +16,7 @@ public:
     virtual void Update() = 0;
     virtual bool Send(const void* data, uint32_t size, bool reliable = true) = 0;
 
+    virtual void Close() = 0;
     virtual bool IsActive() const = 0;
 
     virtual ISteamNetworkingSockets* GetInterface() const { return m_pInterface; }

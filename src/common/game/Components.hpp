@@ -4,6 +4,10 @@
 #include "sfml/Graphics.hpp"
 #include "meatnet/Serialization.hpp"
 
+struct NetId {
+    long value = 0;
+};
+
 struct ZIndex {
     unsigned int value = 0;
 };

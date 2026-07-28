@@ -13,7 +13,7 @@ Client::Client()
 }
 
 Client::~Client() {
-    Disconnect();
+    Close();
 }
 
 bool Client::Connect(const std::string& address) {
@@ -47,7 +47,7 @@ bool Client::Connect(const std::string& address) {
     return true;
 }
 
-void Client::Disconnect() {
+void Client::Close() {
     if (m_pInterface && m_hConnection != k_HSteamNetConnection_Invalid) {
         m_pInterface->CloseConnection(m_hConnection, 0, "Client disconnect", true);
         m_hConnection = k_HSteamNetConnection_Invalid;

@@ -14,7 +14,7 @@ Server::Server()
 }
 
 Server::~Server() {
-    Stop();
+    Close();
 }
 
 bool Server::Start(uint16_t port) {
@@ -55,7 +55,7 @@ bool Server::Start(uint16_t port) {
     return true;
 }
 
-void Server::Stop() {
+void Server::Close() {
     if (!m_running) return;
     m_running = false;
 

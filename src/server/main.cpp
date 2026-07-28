@@ -92,7 +92,7 @@ int main(int argc, const char* argv[]) {
         if (console.GetNextLine(cmd)) {
             if (cmd == "quit" || cmd == "exit") {
                 shouldQuit = true;
-                server->Stop();
+                server->Close();
             } else {
                 printf("Unknown command. Type 'quit' to stop.\n");
             }

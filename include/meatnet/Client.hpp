@@ -11,7 +11,7 @@ public:
     ~Client() override;
 
     bool Connect(const std::string& address);
-    void Disconnect();
+    void Close() override; 
 
     void Update() override;
     bool Send(const void* data, uint32_t size, bool reliable = true) override;

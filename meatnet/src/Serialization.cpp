@@ -11,6 +11,8 @@ static inline uint32_t HostToNet32(uint32_t v) {
            ((v & 0xFF0000) >> 8) |
            ((v & 0xFF000000) >> 24);
 }
+
+
 static inline uint16_t NetToHost16(uint16_t v) { return HostToNet16(v); }
 static inline uint32_t NetToHost32(uint32_t v) { return HostToNet32(v); }
 
