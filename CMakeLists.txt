@@ -15,7 +15,7 @@ find_package(GameNetworkingSockets CONFIG REQUIRED)
 
 file(GLOB_RECURSE COMMON_SOURCES
     "src/common/*.cpp" "src/common/*.hpp"
-    "meatnet/src/*.cpp" "meatnet/*.hpp"
+    "meatnet/src/*.cpp" "include/meatnet/*.hpp"
 )
 
 file(GLOB_RECURSE CLIENT_SOURCES
@@ -50,6 +50,12 @@ add_custom_command(TARGET ${CLIENT_NAME} POST_BUILD
 )
 ##
 
+# Common
+target_include_directories(${CLIENT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+#
+
 # Server
 add_executable(${SERVER_NAME}
     ${COMMON_SOURCES}
@@ -59,6 +65,8 @@ add_executable(${SERVER_NAME}
 target_link_libraries(${SERVER_NAME} PRIVATE 
     EnTT::EnTT
     SFML::System
+    SFML::Graphics
+    SFML::Audio
     GameNetworkingSockets::GameNetworkingSockets
 )
 

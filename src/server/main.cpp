@@ -1,6 +1,6 @@
 //Server main
-#include "game/Components.hpp"
-#include "game/Systems.hpp"
+#include "../common/game/Components.hpp"
+#include "common/game/Systems.hpp"
 
 #include "game/physics/Components.hpp"
 #include "game/physics/Systems.hpp"
